@@ -14,94 +14,55 @@ class GetHelpAction extends Action
 {
     public static function make(?string $name = 'help'): static
     {
+        [$helpPath, $helpFile] = static::resolveContext();
+        $markdown = static::getHelpView($helpPath, $helpFile);
+
         return parent::make($name)
             ->icon('heroicon-o-book-open')
             ->iconButton()
-            ->tooltip('See Guide')
+
+            ->tooltip(function (Action $action) use ($markdown) {
+                $arguments = $action->getArguments();
+
+                return sprintf(
+                    // '%s at Path: %s | File: %s',
+                      '%s',
+                    strip_tags($markdown),
+                    $arguments['helpPath'] ?? '',
+                    $arguments['helpFile'] ?? '',
+                );
+            })
+
             ->color('info')
-            ->modalWidth('4xl')
-            ->modalContent(fn ($livewire): Factory|\Illuminate\Contracts\View\View => static::getHelpView($livewire))
-            ->slideOver();
+            ->action(fn() => view('bites::markdown', [
+                'markdown' => $markdown,
+            ]));
     }
+    protected static function getHelpView(
+        string $helpPath,
+        string $helpFile,
+    ): string {
+        $path = public_path("helpfiles/{$helpPath}/{$helpFile}.md");
 
-    protected static function getHelpView($livewire): Factory|View
-    {
-
-        [$panel, $resourceName, $pageSegment, $recordId] = static::resolveContext($livewire);
-
-        $segments = array_filter([$resourceName, $pageSegment, $recordId]);
-        $cleanPath = implode('/', $segments);
-
-        $paths = static::buildPaths($cleanPath, $resourceName, $panel);
-
-        foreach ($paths as $path) {
-            if (File::exists($path)) {
-                return view('bites::markdown', [
-                    'markdown' => Str::markdown(File::get($path)),
-                ]);
-            }
+        if (File::exists($path)) {
+            return Str::markdown(File::get($path));
         }
-
-        // dd($cleanPath, $paths);
-        return static::fallbackView($cleanPath, $paths);
+        // return  Str::markdown("# No help available\n\nPath: `{$path}`");
+         return  Str::markdown("#`{$path}`");
     }
-
-    protected static function resolveContext($livewire): array
+    protected static function resolveContext(): array
     {
-        $panel = filament()->getCurrentPanel()?->getId();
+        $route = request()->route();
 
-        $resourceName = null;
-        if (method_exists($livewire, 'getResource')) {
-            $resourceClass = class_basename($livewire::getResource());
+        $helpPath = filament()->getCurrentPanel()->getPath();
 
-            $resourceName = str($resourceClass)
-                ->before('Resource')
-                ->plural()
-                ->kebab()
-                ->toString();
-        }
+        $helpFile = str($route?->uri())
+            ->after($helpPath . '/')
+            ->replaceMatches('/\}.*/', '}')
+            ->replace('{record}', (string) $route?->parameter('record'))
+            ->replace('/', '.')
+            ->toString();
 
-        $pageClass = class_basename($livewire);
-
-        $recordId = null;
-        if (method_exists($livewire, 'getRecord') && $livewire->getRecord()) {
-            $recordId = $livewire->getRecord()->getRouteKey();
-        }
-
-        $pageSegment = match (true) {
-            str_starts_with($pageClass, 'List') => null,
-            str_starts_with($pageClass, 'Create') => null,
-            str_starts_with($pageClass, 'Edit') => null,
-            str_starts_with($pageClass, 'View') => null,
-            default => str($pageClass)->kebab(),
-        };
-
-        return [$panel, $resourceName, $pageSegment, $recordId];
-    }
-
-    protected static function buildPaths(
-        ?string $cleanPath,
-        ?string $resourceName,
-        string $panel
-    ): array {
-        return [
-            public_path(sprintf('helpfiles/%s/%s.md', $cleanPath, $panel)),
-            public_path(sprintf('helpfiles/%s/%s.md', $resourceName, $panel)),
-            public_path(sprintf('helpfiles/%s.md', $panel)),
-        ];
-    }
-
-    protected static function fallbackView(string $cleanPath, array $paths): Factory|View
-    {
-        return view('bites::markdown', [
-            'markdown' => Str::markdown(
-                "# No help available\n\n".
-                    "**Resolved path:** `{$cleanPath}`\n\n".
-                    "### Expected files:\n\n".
-                    collect($paths)
-                        ->map(fn (string $p): string => sprintf('- `%s`', $p))
-                        ->implode("\n")
-            ),
-        ]);
+        return [$helpPath, $helpFile];
     }
 }

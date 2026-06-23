@@ -4,34 +4,24 @@ declare(strict_types=1);
 
 namespace Bites\HelpFile;
 
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\File;
+use App\Services\BitesServiceProvider;
+use Bites\HelpFile\Actions\RegisterHelpPageMaker;
 
-class HelpFileServiceProvider extends ServiceProvider
+class HelpFileServiceProvider extends BitesServiceProvider
 {
+    protected string $configFile =
+        __DIR__ . '/../config/bites.php';
+
+    protected string $viewsPath =
+        __DIR__ . '/../resources/views';
+
+    protected string $iconsPath =
+        __DIR__ . '/../resources/svg';
+
     public function boot(): void
     {
-        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'bites');
+        parent::boot();
 
-        $source = __DIR__ . '/../resources/files';
-        $target = public_path('files');
-
-        File::ensureDirectoryExists($target);
-
-        foreach (File::allFiles($source) as $file) {
-
-            $relativePath = $file->getRelativePathname();
-            $destination = $target . DIRECTORY_SEPARATOR . $relativePath;
-
-            File::ensureDirectoryExists(dirname($destination));
-
-            if (! File::exists($destination)) {
-                File::copy($file->getPathname(), $destination);
-            }
-        }
-    }
-    public function register(): void
-    {
-        //
+        app(RegisterHelpPageMaker::class)->execute();
     }
 }

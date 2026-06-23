@@ -13,7 +13,7 @@
 </style>
 
     <div class="markdown-body">
-        {!! str($markdown)->markdown()->sanitizeHtml() !!}
+        {!! str($content)->markdown()->sanitizeHtml() !!}
     </div>
 
 
