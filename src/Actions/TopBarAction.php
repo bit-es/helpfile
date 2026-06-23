@@ -53,7 +53,7 @@ class TopBarAction extends Component implements HasActions, HasForms
         }
 
         return Action::make('myHeaderAction')
-            ->icon('heroicon-o-book-open')
+            ->icon('bites-helpbook')
             ->tooltip($this->helpFile . '@' . $this->panelPath) // Uses the stored state
             ->iconButton()
             ->slideOver()
