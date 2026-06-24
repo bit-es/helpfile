@@ -1,68 +1,169 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Bites\HelpFile\Actions;
 
 use Filament\Actions\Action;
-use Illuminate\Contracts\View\Factory;
-use Illuminate\Contracts\View\View;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
+use Filament\Actions\Contracts\HasActions;
+use Filament\Actions\Concerns\InteractsWithActions;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Components\ViewField;
+use Illuminate\Support\Facades\Route;
+use Livewire\Component;
 
-class GetHelpAction extends Action
+class GetHelpAction extends Component implements HasActions, HasForms
 {
-    public static function make(?string $name = 'help'): static
+    use InteractsWithActions;
+    use InteractsWithForms;
+
+    public string $helpFile = '';
+    public string $panelPath = '';
+
+    public function mount(): void
     {
-        [$helpPath, $helpFile] = static::resolveContext();
-        $markdown = static::getHelpView($helpPath, $helpFile);
+        $route = Route::current();
+        $uri = ltrim((string) $route?->uri(), '/');
 
-        return parent::make($name)
-            ->icon('heroicon-o-book-open')
-            ->iconButton()
+        $this->panelPath = ltrim(
+            (string) filament()->getCurrentPanel()->getPath(),
+            '/'
+        );
 
-            ->tooltip(function (Action $action) use ($markdown) {
-                $arguments = $action->getArguments();
-
-                return sprintf(
-                    // '%s at Path: %s | File: %s',
-                      '%s',
-                    strip_tags($markdown),
-                    $arguments['helpPath'] ?? '',
-                    $arguments['helpFile'] ?? '',
-                );
-            })
-
-            ->color('info')
-            ->action(fn() => view('bites::markdown', [
-                'markdown' => $markdown,
-            ]));
-    }
-    protected static function getHelpView(
-        string $helpPath,
-        string $helpFile,
-    ): string {
-        $path = public_path("helpfiles/{$helpPath}/{$helpFile}.md");
-
-        if (File::exists($path)) {
-            return Str::markdown(File::get($path));
-        }
-        // return  Str::markdown("# No help available\n\nPath: `{$path}`");
-         return  Str::markdown("#`{$path}`");
-    }
-    protected static function resolveContext(): array
-    {
-        $route = request()->route();
-
-        $helpPath = filament()->getCurrentPanel()->getPath();
-
-        $helpFile = str($route?->uri())
-            ->after($helpPath . '/')
+        $this->helpFile = str($uri)
+            ->when(
+                $this->panelPath !== '',
+                fn($str) => $str->after($this->panelPath . '/')
+            )
+            ->replaceMatches('/\{tenant\}\//', '')
             ->replaceMatches('/\}.*/', '}')
             ->replace('{record}', (string) $route?->parameter('record'))
             ->replace('/', '.')
             ->toString();
+    }
 
-        return [$helpPath, $helpFile];
+    protected function getHelpDirectory(): string
+    {
+        return public_path("helpfiles/{$this->panelPath}/");
+    }
+
+    protected function getHelpFilePath(string $helpFile): string
+    {
+        return $this->getHelpDirectory() . $helpFile . '.md';
+    }
+
+    protected function resolveHelpFile(): array
+    {
+        $requested = $this->helpFile;
+        $resolved = $requested;
+
+        while (true) {
+            $file = $this->getHelpFilePath($resolved);
+
+            if (file_exists($file)) {
+                return [
+                    'requested' => $requested,
+                    'resolved' => $resolved,
+                    'path' => $file,
+                    'inherited' => $requested !== $resolved,
+                ];
+            }
+
+            if (! str_contains($resolved, '.')) {
+                break;
+            }
+
+            $resolved = str($resolved)
+                ->beforeLast('.')
+                ->toString();
+        }
+
+        return [
+            'requested' => $requested,
+            'resolved' => null,
+            'path' => null,
+            'inherited' => false,
+        ];
+    }
+
+    protected function buildMarkdownContent(): string
+    {
+        $help = $this->resolveHelpFile();
+        $expectedPath = str_replace(
+            ['/', '\\'],
+            DIRECTORY_SEPARATOR,
+            $this->getHelpFilePath($help['requested'])
+        );
+        if (! $help['path']) {
+        return <<<MD
+>
+> ## **No help file exists for:** `{$help['requested']}`
+>
+> Please create the following markdown file: 
+> 
+> `{$expectedPath}`
+>
+
+---
+
+MD;
+        }
+
+        $content = file_get_contents($help['path']);
+        $resolvedName = str($help['resolved'])
+            ->afterLast('.')
+            ->replace('_', ' ')
+            ->headline()
+            ->toString();
+        $header = <<<MD
+# **{$resolvedName} Quick Guide**
+
+---
+
+MD;
+
+        $content = $header . $content;
+
+        if (! $help['inherited']) {
+            return $content;
+        }
+
+        return <<<MD
+> [!WARNING]
+> ## **No help file exists for:** `{$help['requested']}`
+>
+> Please create the following markdown file:
+> `{$expectedPath}`
+>
+> Displaying the closest parent documentation: `{$help['resolved']}`
+>
+
+---
+
+{$content}
+MD;
+    }
+
+    public function myHeaderAction(): Action
+    {
+        return Action::make('myHeaderAction')
+            ->icon('bites-helpbook')
+            ->label('Quick Guide')
+            ->iconButton()
+            ->modalHeading('Documentation')
+            ->slideOver()
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Close')
+            ->schema([
+                ViewField::make('markdown_preview')
+                    ->view('bites::markdown')
+                    ->viewData([
+                        'content' => $this->buildMarkdownContent(),
+                    ]),
+            ]);
+    }
+
+    public function render()
+    {
+        return view('bites::help-button');
     }
 }

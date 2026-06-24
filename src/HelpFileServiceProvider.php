@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Bites\HelpFile;
 
 use App\Services\BitesServiceProvider;
-use Bites\HelpFile\Actions\RegisterHelpPageMaker;
+use Bites\HelpFile\Actions\DiscoverHelpPageMaker;
 
 class HelpFileServiceProvider extends BitesServiceProvider
 {
@@ -22,6 +22,6 @@ class HelpFileServiceProvider extends BitesServiceProvider
     {
         parent::boot();
 
-        app(RegisterHelpPageMaker::class)->execute();
+        app(DiscoverHelpPageMaker::class)->execute();
     }
 }

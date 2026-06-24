@@ -1,7 +1,4 @@
 <div x-data="markdownViewer()" x-init="init()" wire:ignore class="space-y-4">
-    <div class="text-lg font-semibold">
-        Help
-    </div>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css">
 

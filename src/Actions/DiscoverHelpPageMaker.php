@@ -8,17 +8,16 @@ use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
 use Bites\HelpFile\Enums\Language;
 use Livewire\Livewire;
-use Bites\HelpFile\Actions\TopBarAction;
+use Bites\HelpFile\Actions\GetHelpAction;
 
-class RegisterHelpPageMaker
+class DiscoverHelpPageMaker
 {
     public function execute(): void
     {
-        Livewire::component('bites.help-button', TopBarAction::class);
-        // Livewire::component('bites::help-button', TopBarAction::class);
+        Livewire::component('bites.help-button', GetHelpAction::class);
+ 
         FilamentView::registerRenderHook(
-            PanelsRenderHook::USER_MENU_BEFORE,
-            // fn(): string => \Illuminate\Support\Facades\Blade::render('@livewire(\'bites::help-button\')'),
+            PanelsRenderHook::USER_MENU_AFTER,
             fn(): string => \Illuminate\Support\Facades\Blade::render('@livewire(\'bites.help-button\')'),
         );
     }
