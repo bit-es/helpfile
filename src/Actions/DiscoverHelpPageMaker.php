@@ -15,9 +15,13 @@ class DiscoverHelpPageMaker
     public function execute(): void
     {
         Livewire::component('bites.help-button', GetHelpAction::class);
- 
+
         FilamentView::registerRenderHook(
             PanelsRenderHook::USER_MENU_AFTER,
+            fn(): string => \Illuminate\Support\Facades\Blade::render('@livewire(\'bites.help-button\')'),
+        );
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::SIMPLE_PAGE_END,
             fn(): string => \Illuminate\Support\Facades\Blade::render('@livewire(\'bites.help-button\')'),
         );
     }
