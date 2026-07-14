@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Bites\HelpFile;
 
-use App\Services\BitesServiceProvider;
+use Bites\Base\Services\BitesServiceProvider;
 use Bites\HelpFile\Actions\DiscoverHelpPageMaker;
 
 class HelpFileServiceProvider extends BitesServiceProvider
